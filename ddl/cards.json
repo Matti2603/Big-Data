@@ -1,0 +1,61 @@
+{
+  "collection": "cards",
+  "description": "Endnutzer-Datenbank (MongoDB): ein Dokument pro Druckversion. MongoDB kennt kein CREATE TABLE; Struktur, Pflichtfelder und Indizes sind hier als Validator und Indexliste festgelegt. Der ETL-Lauf lädt zuerst in cards_staging (gleiche Definition) und benennt die Collection nach erfolgreicher Prüfung in cards um.",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": ["_id", "name", "set_code", "search"],
+      "properties": {
+        "_id": {"bsonType": "string", "description": "ID der API"},
+        "multiverseid": {"bsonType": ["int", "long"]},
+        "name": {"bsonType": "string"},
+        "name_de": {"bsonType": "string"},
+        "mana_cost": {"bsonType": "string"},
+        "mana_symbols": {"bsonType": "array", "items": {"bsonType": "string"}},
+        "cmc": {"bsonType": ["double", "int"]},
+        "colors": {"bsonType": "array", "items": {"bsonType": "string"}},
+        "color_names": {"bsonType": "array", "items": {"bsonType": "string"}},
+        "color_identity": {"bsonType": "array", "items": {"bsonType": "string"}},
+        "type_line": {"bsonType": "string"},
+        "type_de": {"bsonType": "string"},
+        "supertypes": {"bsonType": "array"},
+        "types": {"bsonType": "array"},
+        "subtypes": {"bsonType": "array"},
+        "rarity": {"bsonType": "string"},
+        "set_code": {"bsonType": "string"},
+        "set_name": {"bsonType": "string"},
+        "text": {"bsonType": "string"},
+        "text_de": {"bsonType": "string"},
+        "flavor": {"bsonType": "string"},
+        "flavor_de": {"bsonType": "string"},
+        "artist": {"bsonType": "string"},
+        "number": {"bsonType": "string"},
+        "power": {"bsonType": "string"},
+        "toughness": {"bsonType": "string"},
+        "loyalty": {"bsonType": "string"},
+        "layout": {"bsonType": "string"},
+        "image_url": {"bsonType": "string"},
+        "image_url_de": {"bsonType": "string"},
+        "multiverseid_de": {"bsonType": ["int", "long"]},
+        "printings": {"bsonType": "array", "items": {"bsonType": "string"}},
+        "versions": {"bsonType": ["int", "long"], "minimum": 1, "description": "Anzahl Druckversionen mit gleichem Namen in der Datenbank"},
+        "search": {
+          "bsonType": "object",
+          "required": ["name", "text", "artist"],
+          "description": "Normalisierte Suchfelder (klein, ohne Akzente), siehe etl/text.py",
+          "properties": {
+            "name": {"bsonType": "string", "description": "englischer und deutscher Name"},
+            "text": {"bsonType": "string", "description": "Regeltext englisch und deutsch"},
+            "artist": {"bsonType": "string"}
+          }
+        }
+      }
+    }
+  },
+  "indexes": [
+    {"name": "search_name", "keys": [["search.name", 1]]},
+    {"name": "search_artist", "keys": [["search.artist", 1]]},
+    {"name": "name_set", "keys": [["name", 1], ["set_code", 1]]},
+    {"name": "multiverseid", "keys": [["multiverseid", 1]]}
+  ]
+}

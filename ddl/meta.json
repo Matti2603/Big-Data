@@ -1,0 +1,18 @@
+{
+  "collection": "meta",
+  "description": "Stand der Endnutzer-Datenbank, ein Dokument je veröffentlichter Collection (_id = Collection-Name). Wird beim Veröffentlichen geschrieben und im Frontend als Datenstand angezeigt.",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": ["_id", "count", "published_at", "run_id"],
+      "properties": {
+        "_id": {"bsonType": "string"},
+        "count": {"bsonType": ["int", "long"], "minimum": 0},
+        "published_at": {"bsonType": "date"},
+        "run_id": {"bsonType": "string", "description": "Airflow-Lauf, der die Daten erzeugt hat"},
+        "source": {"bsonType": "string"}
+      }
+    }
+  },
+  "indexes": []
+}

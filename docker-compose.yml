@@ -1,0 +1,138 @@
+name: mtg-kartensuche
+
+# Gemeinsame Einstellungen der Airflow-Container. Jeder Container bekommt nur
+# die Zugangsdaten, die er braucht (kein env_file mit allen Secrets).
+x-airflow: &airflow
+  build: ./docker/airflow
+  image: mtg-kartensuche/airflow:1
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?.env fehlt, zuerst "make env" ausführen}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@airflow-db/airflow
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "false"
+    AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "30"
+    PYTHONPATH: /opt/mtg
+    SPARK_LOCAL_IP: 127.0.0.1
+    HDFS_NAMENODE_HTTP: http://hadoop:9870
+    HDFS_URI: hdfs://hadoop:9000
+    HADOOP_USER_NAME: hadoop
+    MONGO_URI: mongodb://mtg_etl:${MONGO_ETL_PASSWORD}@mongo:27017/mtg?authSource=mtg
+  volumes:
+    - ./dags:/opt/airflow/dags:ro
+    - ./etl:/opt/mtg/etl:ro
+    - ./jobs:/opt/mtg/jobs:ro
+    - ./ddl:/opt/mtg/ddl:ro
+    - airflow-logs:/opt/airflow/logs
+  restart: unless-stopped
+
+services:
+  hadoop:
+    build: ./docker/hadoop
+    image: mtg-kartensuche/hadoop:3.4.2
+    hostname: hadoop
+    volumes:
+      - hdfs-data:/data
+    ports:
+      - "127.0.0.1:${HDFS_UI_PORT:-9870}:9870"
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?.env fehlt}
+      MONGO_ETL_PASSWORD: ${MONGO_ETL_PASSWORD}
+      MONGO_WEB_PASSWORD: ${MONGO_WEB_PASSWORD}
+    volumes:
+      - mongo-data:/data/db
+      - ./docker/mongo/init-users.js:/docker-entrypoint-initdb.d/10-users.js:ro
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  airflow-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?.env fehlt}
+      POSTGRES_DB: airflow
+    volumes:
+      - airflow-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow
+    environment:
+      <<: *airflow-env
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:?.env fehlt}
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        airflow db migrate
+        airflow users list -o plain | grep -qw admin || airflow users create \
+          --role Admin --username admin --password "$$AIRFLOW_ADMIN_PASSWORD" \
+          --firstname MTG --lastname Admin --email admin@example.invalid
+    depends_on:
+      airflow-db: {condition: service_healthy}
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow
+    command: webserver
+    ports:
+      - "127.0.0.1:${AIRFLOW_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "-s", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    depends_on:
+      airflow-init: {condition: service_completed_successfully}
+
+  airflow-scheduler:
+    <<: *airflow
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "airflow", "jobs", "check", "--job-type", "SchedulerJob", "--local"]
+      interval: 30s
+      timeout: 20s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      airflow-init: {condition: service_completed_successfully}
+      hadoop: {condition: service_healthy}
+      mongo: {condition: service_healthy}
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    image: mtg-kartensuche/web:1
+    environment:
+      MONGO_URI: mongodb://mtg_web:${MONGO_WEB_PASSWORD}@mongo:27017/mtg?authSource=mtg
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8000}:8000"
+    read_only: true
+    depends_on:
+      mongo: {condition: service_healthy}
+    restart: unless-stopped
+
+volumes:
+  hdfs-data:
+  mongo-data:
+  airflow-db:
+  airflow-logs:

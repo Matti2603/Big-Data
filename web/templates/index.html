@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% macro mana(symbols) -%}
+  {%- for s in symbols or [] %}<span class="mana mana-{{ s | lower | replace('/', '') }}">{{ s }}</span>{% endfor -%}
+{%- endmacro %}
+
+{% block content %}
+<form class="search" method="get" action="/">
+  <label for="q">Karten suchen</label>
+  <div class="search-row">
+    <input id="q" name="q" type="search" value="{{ q }}" maxlength="100" minlength="2"
+           placeholder="z. B. Manta, flying, Kaja Foglio" autofocus required>
+    <button type="submit">Suchen</button>
+  </div>
+  <div class="options">
+    <fieldset>
+      <legend>Suchen in</legend>
+      {% for value, label in [("all", "Alles"), ("name", "Name"), ("text", "Kartentext"), ("artist", "Künstler")] %}
+        <label><input type="radio" name="field" value="{{ value }}" {{ "checked" if field == value }}> {{ label }}</label>
+      {% endfor %}
+    </fieldset>
+    <label><input type="checkbox" name="unique" value="true" {{ "checked" if unique }}> Jede Karte nur einmal (Druckversionen zusammenfassen)</label>
+  </div>
+</form>
+
+{% if error %}
+  <p class="notice">{{ error }}</p>
+{% elif cards is defined %}
+  <p class="summary">{{ total }} Treffer{% if pages > 1 %} · Seite {{ page }} von {{ pages }}{% endif %}</p>
+  {% if cards %}
+  <table class="results">
+    <thead>
+      <tr><th></th><th>Name</th><th>Typ</th><th>Edition</th><th>Künstler</th><th>ID</th></tr>
+    </thead>
+    <tbody>
+      {% for c in cards %}
+      <tr>
+        <td class="thumb">
+          {% if c.image_url %}<img src="{{ c.image_url }}" alt="" loading="lazy" width="60" height="84">{% endif %}
+        </td>
+        <td>
+          <a href="/karte/{{ c._id }}">{{ c.name }}</a> {{ mana(c.mana_symbols) }}
+          {% if c.name_de %}<div class="sub">{{ c.name_de }}</div>{% endif %}
+          {% if unique and (c.versions or 1) > 1 %}<div class="sub">{{ c.versions }} Druckversionen</div>{% endif %}
+        </td>
+        <td>{{ c.type_line or "" }}</td>
+        <td>{{ c.set_name or c.set_code }} <span class="sub">{{ c.rarity or "" }}</span></td>
+        <td>{{ c.artist or "" }}</td>
+        <td class="num">{{ c.multiverseid or "–" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if pages > 1 %}
+  <nav class="pager">
+    {% set base = "?q=" ~ (q | urlencode) ~ "&field=" ~ field ~ ("&unique=true" if unique else "") %}
+    {% if page > 1 %}<a href="{{ base }}&page={{ page - 1 }}">← zurück</a>{% endif %}
+    {% if page < pages %}<a href="{{ base }}&page={{ page + 1 }}">weiter →</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% endif %}
+{% endif %}
+{% endblock %}

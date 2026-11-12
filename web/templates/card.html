@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ card.name }} – MTG-Kartensuche{% endblock %}
+
+{% block content %}
+<p><a href="/" class="back" data-back>← zurück zur Suche</a></p>
+<article class="card-detail">
+  <div class="images">
+    {% if card.image_url %}<img src="{{ card.image_url }}" alt="{{ card.name }}" width="223" height="310">{% endif %}
+    {% if card.image_url_de %}<img src="{{ card.image_url_de }}" alt="{{ card.name_de }}" width="223" height="310">{% endif %}
+  </div>
+  <div class="facts">
+    <h1>{{ card.name }}</h1>
+    {% if card.name_de %}<p class="sub">Deutsch: {{ card.name_de }}</p>{% endif %}
+    <dl>
+      <dt>Manakosten</dt><dd>{{ card.mana_cost or "–" }}{% if card.cmc is defined %} (gesamt {{ card.cmc | int }}){% endif %}</dd>
+      <dt>Farben</dt><dd>{{ (card.color_names or ["farblos"]) | join(", ") }}</dd>
+      <dt>Typ</dt><dd>{{ card.type_line or "–" }}{% if card.type_de %}<br><span class="sub">{{ card.type_de }}</span>{% endif %}</dd>
+      {% if card.power is defined %}<dt>Stärke/Widerstand</dt><dd>{{ card.power }}/{{ card.toughness }}</dd>{% endif %}
+      {% if card.loyalty is defined %}<dt>Loyalität</dt><dd>{{ card.loyalty }}</dd>{% endif %}
+      <dt>Edition</dt><dd>{{ card.set_name }} ({{ card.set_code }}){% if card.number %}, Nr. {{ card.number }}{% endif %}</dd>
+      <dt>Seltenheit</dt><dd>{{ card.rarity or "–" }}</dd>
+      <dt>Künstler</dt><dd>{{ card.artist or "–" }}</dd>
+      <dt>Multiverse-ID</dt><dd>{{ card.multiverseid or "–" }}</dd>
+      <dt>API-ID</dt><dd><code>{{ card._id }}</code></dd>
+    </dl>
+    {% if card.text %}<h2>Kartentext</h2><p class="rules">{{ card.text }}</p>{% endif %}
+    {% if card.text_de %}<h2>Kartentext (deutsch)</h2><p class="rules">{{ card.text_de }}</p>{% endif %}
+    {% if card.flavor %}<p class="flavor">{{ card.flavor }}</p>{% endif %}
+  </div>
+</article>
+
+{% if others %}
+<section>
+  <h2>Weitere Druckversionen ({{ others | length }})</h2>
+  <ul class="printings">
+    {% for o in others %}
+      <li><a href="/karte/{{ o._id }}">{{ o.set_name or o.set_code }}</a> <span class="sub">{{ o.rarity or "" }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

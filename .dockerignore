@@ -1,0 +1,6 @@
+# Build-Kontext des Web-Images ist das Projektverzeichnis; nur das Nötige mitschicken
+*
+!web/
+!etl/__init__.py
+!etl/text.py
+web/__pycache__

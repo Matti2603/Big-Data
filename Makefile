@@ -34,7 +34,7 @@ ps: ## Zustand der Container
 logs: ## Logs aller Dienste verfolgen
 	$(COMPOSE) logs -f --tail=100
 
-trigger: ## Vollständigen ETL-Lauf starten (alle Karten, ca. 30–60 min)
+trigger: ## Vollständigen ETL-Lauf starten (alle Karten, ca. 5 min)
 	$(AIRFLOW) dags trigger $(DAG)
 
 trigger-test: ## Kurzen Testlauf starten (5 API-Seiten = 500 Karten)

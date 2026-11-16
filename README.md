@@ -32,7 +32,7 @@ Danach erreichbar:
 | Airflow | http://localhost:8080 (Benutzer `admin`, Passwort `AIRFLOW_ADMIN_PASSWORD` aus `.env`) |
 | HDFS | http://localhost:9870 (Utilities → Browse the file system → `/user/hadoop/mtg`) |
 
-Beim ersten Start löst Airflow den DAG `mtg_cards` sofort aus. Der vollständige Abruf aller ca. 94.000 Karten dauert rund 20–30 Minuten. Bis dahin meldet die Suche „Noch keine Daten geladen“.
+Beim ersten Start löst Airflow den DAG `mtg_cards` sofort aus. Der vollständige Abruf aller ca. 94.000 Karten dauert rund 5 Minuten. Bis dahin meldet die Suche „Noch keine Daten geladen“.
 
 ## Bedienung
 

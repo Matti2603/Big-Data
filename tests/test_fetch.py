@@ -94,3 +94,51 @@ def test_invalid_page_is_rejected():
     r._body = {"error": "x"}
     with pytest.raises(RuntimeError, match="kein gültiges Kartenformat"):
         fetch.parse_cards(r, 5)
+
+
+class PageSession:
+    """Antwortet je nach angefragter Seite; mehrere Threads dürfen sie gleichzeitig nutzen."""
+
+    def __init__(self, last, fail_page=None):
+        self.last = last
+        self.fail_page = fail_page
+        self.pages = []
+        self.headers = {}
+
+    def get(self, url, params, timeout):
+        page = params["page"]
+        self.pages.append(page)
+        if page == self.fail_page:
+            return FakeResponse(404)
+        headers = {"Link": f'<x?page={self.last}&pageSize=100>; rel="last"', "Total-Count": str(self.last * 2)}
+        return FakeResponse(cards=[{"id": f"{page}a"}, {"id": f"{page}b"}], headers=headers)
+
+
+def test_fetch_all_loads_pages_in_parallel(monkeypatch):
+    session = PageSession(last=20)
+    written = {}
+    monkeypatch.setattr(fetch.requests, "Session", lambda: session)
+    monkeypatch.setattr(fetch.hdfs, "list_dir", lambda path: [])
+    monkeypatch.setattr(fetch.hdfs, "write", lambda path, data: written.__setitem__(path, json.loads(data)))
+
+    manifest = fetch.fetch_all("/raw/x", sleep=lambda s: None, workers=4)
+
+    assert sorted(session.pages) == list(range(1, 21))  # jede Seite genau einmal
+    for page in range(1, 21):
+        cards = written[f"/raw/x/cards_page_{page:04d}.json"]["cards"]
+        assert cards[0]["id"] == f"{page}a"  # Inhalt landet in der richtigen Datei
+    assert manifest["pages_fetched"] == 20 and manifest["workers"] == 4
+
+
+def test_fetch_all_stops_when_a_page_fails(monkeypatch):
+    session = PageSession(last=30, fail_page=7)
+    written = []
+    monkeypatch.setattr(fetch.requests, "Session", lambda: session)
+    monkeypatch.setattr(fetch.hdfs, "list_dir", lambda path: [])
+    monkeypatch.setattr(fetch.hdfs, "write", lambda path, data: written.append(path))
+
+    with pytest.raises(RuntimeError, match="404"):
+        fetch.fetch_all("/raw/x", sleep=lambda s: None, workers=1)
+
+    assert "/raw/x/cards_page_0007.json" not in written
+    assert "/raw/x/_manifest.json" not in written  # kein Manifest für einen unvollständigen Lauf

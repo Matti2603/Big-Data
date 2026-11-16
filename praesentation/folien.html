@@ -286,9 +286,10 @@
 <!-- 6 fetch_cards -->
 <section class="slide" data-footer="MTG-Kartensuche · Task fetch_cards">
   <div class="kicker">Task 2 · fetch_cards</div>
-  <h2>Rohdaten unverändert sichern, robust gegen Abbrüche</h2>
+  <h2>Rohdaten unverändert sichern, schnell und robust</h2>
   <div class="grid2">
-    <ul class="bullets">
+    <ul class="bullets small">
+      <li><b>6 Seiten parallel</b>: 937 Seiten in unter 4 Minuten</li>
       <li>Jede Seite als eigene Datei: <code>raw/&lt;Datum&gt;/cards_page_0001.json</code></li>
       <li>Vor dem Speichern prüfen: gültiges JSON mit Liste <code>cards</code></li>
       <li>Atomar schreiben: erst <code>_tmp</code>, dann umbenennen</li>
@@ -299,7 +300,7 @@
       <tr><td>HTTP 429, 5xx, Netzfehler</td><td>bis 8 Versuche, Pause wächst bis 5 min, <code>Retry-After</code></td></tr>
       <tr><td>anderer Fehler (404)</td><td>sofort abbrechen</td></tr>
       <tr><td>Task bricht ab</td><td>Airflow-Retry macht bei der fehlenden Seite weiter</td></tr>
-      <tr><td>jede Anfrage</td><td>0,5 s Pause, API schonen</td></tr>
+      <tr><td>nach jeder Seite</td><td>0,5 s Pause je Thread, API schonen</td></tr>
     </table>
   </div>
 </section>
@@ -407,30 +408,30 @@
 <!-- 11 Demo -->
 <section class="slide" data-footer="MTG-Kartensuche · Live-Demo">
   <div class="kicker">Live-Demo</div>
-  <h2>Workflow starten und Ergebnis zeigen</h2>
+  <h2>Der Lauf vom Anfang ist fertig</h2>
   <ol class="steps">
-    <li><b>Airflow:</b> DAG <code>mtg_cards</code> auslösen, Graph und Logs zeigen</li>
-    <li><b>HDFS:</b> Rohdaten-Seiten erscheinen in <code>/user/hadoop/mtg/raw/</code></li>
-    <li><b>Letzter vollständiger Lauf:</b> Logs von Spark und publish</li>
-    <li><b>Suche:</b> funktioniert weiter, während der neue Lauf läuft</li>
+    <li><b>Airflow:</b> alle sechs Tasks grün, Dauer und Logs mit den Zählungen</li>
+    <li><b>HDFS:</b> 937 Rohdaten-Seiten in <code>raw/&lt;Datum&gt;</code>, Parquet in <code>final/cards</code></li>
+    <li><b>Suche:</b> „Manta“ findet „Manta Riders“ und „Wolkenmanta“</li>
+    <li><b>Detailseite:</b> Bild, deutscher Text, andere Druckversionen</li>
   </ol>
 </section>
 
 <!-- 12 Kennzahlen -->
 <section class="slide" data-footer="MTG-Kartensuche · Ergebnisse">
   <div class="kicker">Ergebnis</div>
-  <h2>Erster vollständiger Lauf am 12.11.2026</h2>
+  <h2>Vollständiger Lauf am 16.11.2026</h2>
   <div class="grid2">
     <table>
       <tr><th>Task</th><th class="r">Dauer</th><th>Ergebnis</th></tr>
-      <tr><td class="mono" style="font-size:18px">fetch_cards</td><td class="r">26 min</td><td>937 Seiten, 93.643 Karten</td></tr>
-      <tr><td class="mono" style="font-size:18px">raw_to_final</td><td class="r">13 s</td><td>0 verworfen, 0 Duplikate</td></tr>
-      <tr><td class="mono" style="font-size:18px">final_to_mongodb</td><td class="r">9 s</td><td>93.643 Dokumente</td></tr>
+      <tr><td class="mono" style="font-size:18px">fetch_cards</td><td class="r">3:44 min</td><td>937 Seiten, 93.643 Karten</td></tr>
+      <tr><td class="mono" style="font-size:18px">raw_to_final</td><td class="r">11 s</td><td>0 verworfen, 0 Duplikate</td></tr>
+      <tr><td class="mono" style="font-size:18px">final_to_mongodb</td><td class="r">8 s</td><td>93.643 Dokumente</td></tr>
       <tr><td class="mono" style="font-size:18px">publish</td><td class="r">1 s</td><td>veröffentlicht</td></tr>
     </table>
     <div class="box warm" style="align-self:start">
-      <div class="stat"><div class="value" style="color:var(--warm)">über 98 %</div><div class="label">der Laufzeit entfallen auf den API-Abruf</div></div>
-      <p class="small" style="margin-top:18px">Etwa 1,7 s je Seite inklusive Pause. Die Verarbeitung mit Spark ist kein Engpass.</p>
+      <div class="stat"><div class="value" style="color:var(--warm)">4:10 min</div><div class="label">für den ganzen Lauf, von der API bis zur Suche</div></div>
+      <p class="small" style="margin-top:18px">Erste Version mit Abruf Seite für Seite: <b>26 min</b>. Mit 6 parallelen Abrufen: <b>3:44 min</b>. Spark und MongoDB brauchen zusammen unter 25 s.</p>
     </div>
   </div>
 </section>

@@ -2,6 +2,8 @@
 
 Prüfungsleistung Big Data, Thema „Create MTG Trading Card Database By API“.
 
+Die HDFS-Pfade `/user/hadoop/mtg/raw` und `/user/hadoop/mtg/final` sowie die Beispielsuche „Manta“ (findet „Manta Riders“ und „Wolkenmanta“) stammen aus der Aufgabenstellung.
+
 ## Überblick
 
 ```mermaid
@@ -50,7 +52,8 @@ Legt `/user/hadoop/mtg/raw/<Datum>` und `/user/hadoop/mtg/final` an (WebHDFS `MK
 
 Code: `etl/fetch.py`, HDFS-Zugriff: `etl/hdfs.py` (WebHDFS).
 
-- Seite 1 abrufen, aus den Headern Gesamtzahl und letzte Seite bestimmen, dann Seite für Seite weiter.
+- Seite 1 abrufen und aus den Headern Gesamtzahl und letzte Seite bestimmen.
+- Die übrigen Seiten laden **6 Threads parallel** (einstellbar über `MTG_FETCH_WORKERS`), jeder mit eigener HTTP-Verbindung. Der Abruf wartet fast nur auf die Antworten der API, deshalb verkürzt das die Laufzeit von rund 26 auf unter 4 Minuten. Das Rate-Limit (1.000 Anfragen) wird dabei nicht erreicht: Auch bei zwei vollständigen Läufen direkt hintereinander blieben laut `Ratelimit-Remaining` immer mindestens 391 Anfragen übrig, HTTP 429 kam nicht vor.
 - Jede Seite wird **unverändert** als `cards_page_0001.json` … `cards_page_0937.json` gespeichert. Der Raw-Layer ist damit eine originalgetreue Kopie der Quelle.
 - Vor dem Speichern wird geprüft, dass die Antwort gültiges JSON mit einer Liste `cards` ist.
 - Schreiben ist atomar: erst unter `…._tmp`, dann Umbenennen.
@@ -62,8 +65,9 @@ Regeln für einen stabilen Abruf:
 |---|---|
 | HTTP 429 (Rate-Limit) oder 5xx, Netzwerkfehler | bis zu 8 Versuche mit wachsender Pause (10 s … 5 min), `Retry-After` wird beachtet |
 | andere Fehler (z. B. 404) | sofortiger Abbruch |
-| Task bricht trotzdem ab | Airflow wiederholt ihn bis zu 6-mal im Abstand von 10 min; Seiten, die schon in HDFS liegen, werden übersprungen |
-| zwischen zwei Anfragen | 0,5 s Pause, um die API nicht zu überlasten |
+| eine Seite scheitert endgültig | noch nicht gestartete Seiten werden abgebrochen, der Task schlägt fehl, ein Manifest wird nicht geschrieben |
+| Task bricht ab | Airflow wiederholt ihn bis zu 6-mal im Abstand von 10 min; Seiten, die schon in HDFS liegen, werden übersprungen |
+| nach jeder Seite | 0,5 s Pause je Thread, um die API nicht zu überlasten |
 
 ### 3. `raw_to_final` – Raw-Layer → Final-Layer
 
@@ -114,16 +118,17 @@ Code: `etl/mongo.py`.
 
 Behält die Rohdaten der letzten 3 Tage und löscht ältere Tagesverzeichnisse, damit HDFS bei täglichem Lauf nicht vollläuft.
 
-### Ergebnis des ersten vollständigen Laufs (12.11.2026)
+### Ergebnis eines vollständigen Laufs (16.11.2026)
 
 | Task | Dauer | Ergebnis |
 |---|---|---|
-| `fetch_cards` | 26 min | 937 Seiten, 93.643 Karten |
-| `raw_to_final` | 13 s | 93.643 Karten, 0 ohne ID/Name, 0 Duplikate |
-| `final_to_mongodb` | 9 s | 93.643 Dokumente in `cards_staging` |
+| `fetch_cards` | 3 min 44 s | 937 Seiten, 93.643 Karten, kein HTTP 429 |
+| `raw_to_final` | 11 s | 93.643 Karten, 0 ohne ID/Name, 0 Duplikate |
+| `final_to_mongodb` | 8 s | 93.643 Dokumente in `cards_staging` |
 | `publish` | 1 s | `cards` mit 93.643 Dokumenten veröffentlicht |
+| **gesamt** | **4 min 10 s** | |
 
-Die Dauer bestimmt fast ausschließlich der API-Abruf (ca. 1,7 s je Seite inklusive Pause). Die API liefert in diesem Stand keine doppelten IDs. Die Regel zur Deduplizierung bleibt trotzdem, weil sich Seiten verschieben können, wenn sich der Bestand während des Abrufs ändert.
+Die Dauer bestimmt vor allem der API-Abruf (rund 90 % der Laufzeit). Beim ersten Lauf am 12.11.2026 wurden die Seiten noch nacheinander abgerufen, das dauerte 26 Minuten. Die API liefert in diesem Stand keine doppelten IDs. Die Regel zur Deduplizierung bleibt trotzdem, weil sich Seiten verschieben können, wenn sich der Bestand während des Abrufs ändert.
 
 ## Datenmodell
 

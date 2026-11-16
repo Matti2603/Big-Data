@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTG-Kartensuche</title>
+<style>
+  :root {
+    --paper: #f7f5f0;
+    --card: #ffffff;
+    --ink: #1c222b;
+    --muted: #5d6673;
+    --line: #d9d4c8;
+    --accent: #2457a6;
+    --accent-soft: #e4ecf8;
+    --warm: #a8641a;
+    --warm-soft: #f6ead9;
+    --ok: #2f7a47;
+    --mana-w: #efe4c4;
+    --mana-u: #2a6fb5;
+    --mana-b: #3a3432;
+    --mana-r: #c4412d;
+    --mana-g: #3b874e;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #2b2f36;
+    color: var(--ink);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+  #stage {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 1280px; height: 720px;
+    transform-origin: center center;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    background: var(--paper);
+    padding: 64px 80px 72px;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .slide.active { display: flex; }
+  .slide::after {
+    content: attr(data-footer);
+    position: absolute; left: 80px; right: 80px; bottom: 26px;
+    font-size: 15px; color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+  .num {
+    position: absolute; right: 80px; bottom: 26px;
+    font-size: 15px; color: var(--muted);
+    padding-top: 11px;
+  }
+  .kicker {
+    font-size: 17px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 64px; line-height: 1.05; letter-spacing: -.02em; }
+  h2 { font-size: 42px; line-height: 1.15; letter-spacing: -.01em; margin-bottom: 30px; }
+  h3 { font-size: 22px; margin-bottom: 10px; }
+  p, li { font-size: 24px; line-height: 1.45; }
+  ul { list-style: none; }
+  ul.bullets li { position: relative; padding-left: 28px; margin-bottom: 12px; }
+  ul.bullets li::before {
+    content: ""; position: absolute; left: 4px; top: 14px;
+    width: 9px; height: 9px; border-radius: 50%; background: var(--accent);
+  }
+  .small, .small li { font-size: 20px; }
+  code, .mono { font-family: var(--mono); font-size: .88em; }
+  code { background: rgba(36, 87, 166, .08); padding: 1px 6px; border-radius: 4px; }
+  .muted { color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  .box {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 24px 26px;
+  }
+  .box.blue { background: var(--accent-soft); border-color: #c4d4ee; }
+  .box.warm { background: var(--warm-soft); border-color: #ead3b4; }
+  .stat .value { font-size: 54px; font-weight: 700; letter-spacing: -.02em; color: var(--accent); line-height: 1.1; }
+  .stat .label { font-size: 20px; color: var(--muted); margin-top: 6px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 11px 14px; font-size: 21px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 16px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pill {
+    display: inline-block; font-size: 15px; font-weight: 600;
+    padding: 3px 10px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .mana-strip { display: flex; gap: 10px; margin-bottom: 40px; }
+  .mana-strip span { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(0,0,0,.12); }
+
+  /* Titel */
+  .title-slide { justify-content: center; }
+  .title-slide h1 { font-size: 76px; }
+  .title-slide .sub { font-size: 30px; color: var(--muted); margin-top: 18px; }
+  .title-slide .meta { font-size: 22px; margin-top: 56px; color: var(--ink); }
+  .title-slide .meta span { color: var(--muted); }
+
+  /* Task-Kette */
+  .chain { display: flex; align-items: stretch; gap: 0; margin: 6px 0 34px; }
+  .chain .t {
+    flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 12px; text-align: center;
+  }
+  .chain .t b { display: block; font-family: var(--mono); font-size: 17px; }
+  .chain .t small { display: block; font-size: 15px; color: var(--muted); margin-top: 4px; }
+  .chain .t.spark { background: var(--warm-soft); border-color: #ead3b4; }
+  .chain .arr { width: 26px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 22px; }
+
+  /* Demo */
+  ol.steps { counter-reset: s; list-style: none; }
+  ol.steps li { counter-increment: s; position: relative; padding-left: 58px; margin-bottom: 18px; }
+  ol.steps li::before {
+    content: counter(s); position: absolute; left: 0; top: 0;
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .bar { height: 30px; border-radius: 6px; background: var(--accent); }
+  .bar.warm { background: var(--warm); }
+
+  #hint {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    color: #c9ced6; font: 13px var(--sans); opacity: .8; pointer-events: none;
+    transition: opacity .6s;
+  }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    body { background: none; overflow: visible; }
+    #stage { position: static; transform: none !important; width: auto; height: auto; }
+    .slide { position: relative; display: flex !important; width: 1280px; height: 720px; page-break-after: always; break-after: page; }
+    #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+
+<!-- 1 Titel -->
+<section class="slide title-slide" data-footer="Big Data · Prüfungsleistung">
+  <div class="mana-strip" aria-hidden="true">
+    <span style="background:var(--mana-w)"></span><span style="background:var(--mana-u)"></span><span style="background:var(--mana-b)"></span><span style="background:var(--mana-r)"></span><span style="background:var(--mana-g)"></span>
+  </div>
+  <div class="kicker">Create MTG Trading Card Database By API</div>
+  <h1>MTG-Kartensuche</h1>
+  <p class="sub">Von der API über HDFS und Spark zur durchsuchbaren Datenbank</p>
+  <p class="meta">Matti Frey <span>· Big Data · November 2026</span></p>
+</section>
+
+<!-- 2 Aufgabe -->
+<section class="slide" data-footer="MTG-Kartensuche · Aufgabe und Ergebnis">
+  <div class="kicker">Aufgabe</div>
+  <h2>Alle Magic-Karten laden und durchsuchbar machen</h2>
+  <div class="grid4" style="margin-bottom:40px">
+    <div class="box stat"><div class="value">93.643</div><div class="label">Karten (Druckversionen)</div></div>
+    <div class="box stat"><div class="value">937</div><div class="label">API-Seiten je Lauf</div></div>
+    <div class="box stat"><div class="value">6</div><div class="label">Tasks in einem Airflow-DAG</div></div>
+    <div class="box stat"><div class="value">03:00</div><div class="label">täglicher Lauf (UTC)</div></div>
+  </div>
+  <ul class="bullets">
+    <li>Quelle: <code>api.magicthegathering.io</code>, ETL vollständig automatisiert mit Airflow</li>
+    <li>Big-Data-Strecke: HDFS (Raw + Final), PySpark, MongoDB als Endnutzer-Datenbank</li>
+    <li>Suche nach Name, Kartentext und Künstler, auf Englisch und Deutsch</li>
+  </ul>
+</section>
+
+<!-- 3 Datenquelle -->
+<section class="slide" data-footer="MTG-Kartensuche · Datenquelle">
+  <div class="kicker">Datenquelle</div>
+  <h2>Die API liefert Karten seitenweise</h2>
+  <div class="grid2">
+    <div>
+      <div class="box" style="margin-bottom:24px">
+        <p class="mono" style="font-size:20px">GET /v1/cards?page=N&amp;pageSize=100</p>
+      </div>
+      <table>
+        <tr><th>Header</th><th>Nutzen</th></tr>
+        <tr><td><code>Total-Count</code></td><td>93.643 Karten</td></tr>
+        <tr><td><code>Link: rel="last"</code></td><td>letzte Seite: 937</td></tr>
+        <tr><td><code>Ratelimit-*</code></td><td>1.000 Anfragen, Rest</td></tr>
+      </table>
+    </div>
+    <div>
+      <ul class="bullets">
+        <li>Eine Karte = eine <b>Druckversion</b>: gleiche Karte in mehreren Editionen, je eigene <code>id</code></li>
+        <li>Übersetzungen im Feld <code>foreignNames</code>, daraus wird Deutsch übernommen</li>
+        <li>Rohdaten pro Lauf: 366 MB JSON</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 4 Architektur -->
+<section class="slide" data-footer="MTG-Kartensuche · Architektur">
+  <div class="kicker">Architektur</div>
+  <h2>Ein Weg von der Quelle bis zur Suche</h2>
+  <svg viewBox="0 0 1120 400" width="1120" height="400" role="img" aria-label="Datenfluss von der API über HDFS und Spark nach MongoDB und ins Web, gesteuert von Airflow">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#5d6673"/>
+      </marker>
+    </defs>
+    <style>
+      .n rect { fill: #fff; stroke: #d9d4c8; stroke-width: 1.5; }
+      .n.h rect { fill: #e4ecf8; stroke: #c4d4ee; }
+      .n.m rect { fill: #e5f1e8; stroke: #bcdcc5; }
+      .n text { font: 600 17px var(--sans); fill: #1c222b; text-anchor: middle; }
+      .n text.s { font: 400 14px var(--sans); fill: #5d6673; }
+      .e { stroke: #5d6673; stroke-width: 1.8; fill: none; marker-end: url(#ah); }
+      .el { font: 600 13.5px var(--mono); fill: #1c222b; text-anchor: middle; }
+      .el.sp { fill: #a8641a; }
+      .ctl { stroke: #a8641a; stroke-width: 1.4; stroke-dasharray: 5 5; fill: none; }
+    </style>
+
+    <!-- Airflow-Band -->
+    <rect x="20" y="10" width="1080" height="54" rx="10" fill="#f6ead9" stroke="#ead3b4"/>
+    <text x="560" y="43" text-anchor="middle" style="font:600 18px var(--sans);fill:#1c222b">Airflow · DAG mtg_cards · steuert, plant, wiederholt</text>
+    <line class="ctl" x1="235" y1="64" x2="235" y2="150"/>
+    <line class="ctl" x1="420" y1="64" x2="420" y2="150"/>
+    <line class="ctl" x1="605" y1="64" x2="605" y2="150"/>
+    <line class="ctl" x1="790" y1="64" x2="790" y2="150"/>
+
+    <!-- Knoten -->
+    <g class="n"><rect x="20" y="170" width="140" height="84" rx="10"/><text x="90" y="206">MTG-API</text><text class="s" x="90" y="230">JSON, paginiert</text></g>
+    <g class="n h"><rect x="200" y="170" width="150" height="84" rx="10"/><text x="275" y="206">HDFS Raw</text><text class="s" x="275" y="230">JSON, unverändert</text></g>
+    <g class="n h"><rect x="390" y="170" width="150" height="84" rx="10"/><text x="465" y="206">HDFS Final</text><text class="s" x="465" y="230">Parquet, bereinigt</text></g>
+    <g class="n m"><rect x="580" y="170" width="150" height="84" rx="10"/><text x="655" y="206">cards_staging</text><text class="s" x="655" y="230">MongoDB</text></g>
+    <g class="n m"><rect x="770" y="170" width="150" height="84" rx="10"/><text x="845" y="206">cards</text><text class="s" x="845" y="230">MongoDB</text></g>
+    <g class="n"><rect x="960" y="170" width="140" height="84" rx="10"/><text x="1030" y="206">Web</text><text class="s" x="1030" y="230">FastAPI</text></g>
+
+    <!-- Kanten -->
+    <path class="e" d="M160 212 H198"/>
+    <path class="e" d="M350 212 H388"/>
+    <path class="e" d="M540 212 H578"/>
+    <path class="e" d="M730 212 H768"/>
+    <path class="e" d="M920 212 H958"/>
+
+    <text class="el" x="180" y="288">fetch_cards</text>
+    <text class="el sp" x="370" y="288">raw_to_final</text>
+    <text class="el sp" x="370" y="306">PySpark</text>
+    <text class="el sp" x="560" y="288">final_to_mongodb</text>
+    <text class="el sp" x="560" y="306">PySpark</text>
+    <text class="el" x="750" y="288">publish</text>
+    <text class="el" x="750" y="306">prüfen + tauschen</text>
+    <text class="el" x="940" y="288">nur lesen</text>
+
+    <!-- Docker Compose -->
+    <rect x="20" y="334" width="1080" height="54" rx="10" fill="none" stroke="#d9d4c8" stroke-dasharray="4 4"/>
+    <text x="560" y="367" text-anchor="middle" style="font:400 16px var(--sans);fill:#5d6673">Docker Compose: airflow-db (Postgres) · airflow-webserver · airflow-scheduler (mit Spark) · hadoop · mongo · web</text>
+  </svg>
+</section>
+
+<!-- 5 DAG -->
+<section class="slide" data-footer="MTG-Kartensuche · Airflow-DAG">
+  <div class="kicker">Orchestrierung</div>
+  <h2>Der DAG <code style="font-size:.85em">mtg_cards</code>: sechs Tasks in einer Kette</h2>
+  <div class="chain">
+    <div class="t"><b>create_hdfs_dirs</b><small>Ordner anlegen</small></div><div class="arr">→</div>
+    <div class="t"><b>fetch_cards</b><small>API → Raw</small></div><div class="arr">→</div>
+    <div class="t spark"><b>raw_to_final</b><small>Spark: bereinigen</small></div><div class="arr">→</div>
+    <div class="t spark"><b>final_to_mongodb</b><small>Spark: anreichern</small></div><div class="arr">→</div>
+    <div class="t"><b>publish</b><small>prüfen + tauschen</small></div><div class="arr">→</div>
+    <div class="t"><b>cleanup_raw</b><small>alte Rohdaten</small></div>
+  </div>
+  <div class="grid3">
+    <div class="box"><h3>Zeitplan</h3><p class="small">Täglich 03:00 UTC, kein Catchup, höchstens ein Lauf gleichzeitig</p></div>
+    <div class="box"><h3>Wiederholungen</h3><p class="small">Standard 2 Versuche, <code>fetch_cards</code> 6 Versuche im Abstand von 10 min</p></div>
+    <div class="box"><h3>Testlauf</h3><p class="small">Parameter <code>max_pages</code>: z.&nbsp;B. 5 Seiten = 500 Karten statt aller 937</p></div>
+  </div>
+</section>
+
+<!-- 6 fetch_cards -->
+<section class="slide" data-footer="MTG-Kartensuche · Task fetch_cards">
+  <div class="kicker">Task 2 · fetch_cards</div>
+  <h2>Rohdaten unverändert sichern, robust gegen Abbrüche</h2>
+  <div class="grid2">
+    <ul class="bullets">
+      <li>Jede Seite als eigene Datei: <code>raw/&lt;Datum&gt;/cards_page_0001.json</code></li>
+      <li>Vor dem Speichern prüfen: gültiges JSON mit Liste <code>cards</code></li>
+      <li>Atomar schreiben: erst <code>_tmp</code>, dann umbenennen</li>
+      <li><code>_manifest.json</code>: Zeitpunkt, Anzahl laut API, Seiten</li>
+    </ul>
+    <table>
+      <tr><th>Situation</th><th>Verhalten</th></tr>
+      <tr><td>HTTP 429, 5xx, Netzfehler</td><td>bis 8 Versuche, Pause wächst bis 5 min, <code>Retry-After</code></td></tr>
+      <tr><td>anderer Fehler (404)</td><td>sofort abbrechen</td></tr>
+      <tr><td>Task bricht ab</td><td>Airflow-Retry macht bei der fehlenden Seite weiter</td></tr>
+      <tr><td>jede Anfrage</td><td>0,5 s Pause, API schonen</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 7 raw_to_final -->
+<section class="slide" data-footer="MTG-Kartensuche · Task raw_to_final">
+  <div class="kicker">Task 3 · raw_to_final · PySpark</div>
+  <h2>Aus 937 Seiten wird eine saubere Tabelle</h2>
+  <div class="grid2">
+    <div>
+      <ul class="bullets small">
+        <li>Festes Schema beim Lesen, dann <code>explode</code>: eine Zeile je Karte</li>
+        <li>Ohne <code>id</code> oder <code>name</code> verwerfen, Duplikate nach <code>id</code> entfernen</li>
+        <li>Texte trimmen, leere Werte → NULL, <code>multiverseid</code> → Zahl</li>
+        <li>Bild-URLs auf <code>https</code>, Edition in Großbuchstaben</li>
+        <li>Deutsche Übersetzung als eigene Spalten (<code>name_de</code>, <code>text_de</code> …)</li>
+        <li>Spalten und Typen genau wie in <code>ddl/final_cards.sql</code></li>
+      </ul>
+    </div>
+    <div class="box blue" style="align-self:start">
+      <h3>Raw → Final</h3>
+      <p class="small muted" style="margin-bottom:14px">Größe beim ersten vollständigen Lauf</p>
+      <p class="small" style="margin-bottom:6px">JSON, 937 Dateien: <b>366 MB</b></p>
+      <div class="bar warm" style="width:100%"></div>
+      <p class="small" style="margin:18px 0 6px">Parquet, 4 Dateien: <b>23 MB</b></p>
+      <div class="bar" style="width:6.3%"></div>
+      <p class="small" style="margin-top:18px">Spaltenorientiert und komprimiert: rund <b>16× kleiner</b></p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 final_to_mongodb + publish -->
+<section class="slide" data-footer="MTG-Kartensuche · Tasks final_to_mongodb und publish">
+  <div class="kicker">Tasks 4 und 5</div>
+  <h2>Für die Suche aufbereiten und sicher veröffentlichen</h2>
+  <div class="grid2">
+    <div class="box">
+      <h3>final_to_mongodb <span class="pill">PySpark</span></h3>
+      <ul class="bullets small">
+        <li>Suchfelder normalisiert: klein, ohne Akzente, ß → ss</li>
+        <li><code>versions</code>: Druckversionen je Name (Window-Funktion)</li>
+        <li>Farben auf Deutsch, Manakosten als Liste</li>
+        <li>Lädt in <code>cards_staging</code> mit Validator aus der DDL</li>
+        <li>Prüfung: Dokumente = Zeilen im Final-Layer</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>publish</h3>
+      <ul class="bullets small">
+        <li>Staging darf nicht leer sein</li>
+        <li>Vollständiger Lauf: höchstens 10 % weniger Karten als vorher</li>
+        <li>Indizes anlegen, dann <code>renameCollection</code> in einem Schritt</li>
+        <li>Die Suche sieht nie einen halb geladenen Stand</li>
+        <li>Datenstand in <code>meta</code>, angezeigt im Frontend</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 9 Datenmodell -->
+<section class="slide" data-footer="MTG-Kartensuche · Datenmodell">
+  <div class="kicker">Datenmodell</div>
+  <h2>Drei Schichten, eine DDL-Datei je Tabelle</h2>
+  <table style="margin-bottom:30px">
+    <tr><th>Schicht</th><th>Ort</th><th>Format</th><th>Inhalt</th></tr>
+    <tr><td><b>Raw</b></td><td class="mono" style="font-size:17px">/user/hadoop/mtg/raw/&lt;Datum&gt;/</td><td>JSON</td><td>Originalantwort der API, 3 Tage aufbewahrt</td></tr>
+    <tr><td><b>Final</b></td><td class="mono" style="font-size:17px">/user/hadoop/mtg/final/cards/</td><td>Parquet</td><td>bereinigt, 30 Spalten, eine Zeile je Druckversion</td></tr>
+    <tr><td><b>Endnutzer</b></td><td class="mono" style="font-size:17px">MongoDB mtg.cards</td><td>BSON</td><td>Final-Daten plus Suchfelder</td></tr>
+  </table>
+  <div class="grid3">
+    <div class="box"><p class="mono" style="font-size:19px;font-weight:600">ddl/final_cards.sql</p><p class="small muted">Spark SQL, wird von beiden Spark-Jobs registriert</p></div>
+    <div class="box"><p class="mono" style="font-size:19px;font-weight:600">ddl/cards.json</p><p class="small muted">JSON-Schema-Validator und Indizes für MongoDB</p></div>
+    <div class="box"><p class="mono" style="font-size:19px;font-weight:600">ddl/meta.json</p><p class="small muted">Datenstand je veröffentlichter Collection</p></div>
+  </div>
+</section>
+
+<!-- 10 Web -->
+<section class="slide" data-footer="MTG-Kartensuche · Webanwendung">
+  <div class="kicker">Frontend</div>
+  <h2>Suche für Endnutzer</h2>
+  <div class="grid2">
+    <div>
+      <h3>Funktionen</h3>
+      <ul class="bullets small">
+        <li>Suche in Name, Kartentext, Künstler oder allem</li>
+        <li>Teilstring, ohne Groß-/Kleinschreibung und Akzente: „weiss“ findet „Weiß“</li>
+        <li>Englisch und Deutsch: „Manta“ findet „Wolkenmanta“</li>
+        <li>„Jede Karte nur einmal“: Druckversionen per <code>$group</code> zusammenfassen</li>
+        <li>Detailseite mit Bildern und allen Druckversionen</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Sicherheit</h3>
+      <ul class="bullets small">
+        <li>Eigener MongoDB-Benutzer nur mit Leserechten</li>
+        <li>Suchbegriff wird maskiert, höchstens 100 Zeichen</li>
+        <li>Ausgaben escaped, Content Security Policy</li>
+        <li>Alle Ports nur auf <code>127.0.0.1</code></li>
+        <li>Passwörter zufällig erzeugt, nicht im Repo</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 11 Demo -->
+<section class="slide" data-footer="MTG-Kartensuche · Live-Demo">
+  <div class="kicker">Live-Demo</div>
+  <h2>Workflow starten und Ergebnis zeigen</h2>
+  <ol class="steps">
+    <li><b>Airflow:</b> DAG <code>mtg_cards</code> auslösen, Graph und Logs zeigen</li>
+    <li><b>HDFS:</b> Rohdaten-Seiten erscheinen in <code>/user/hadoop/mtg/raw/</code></li>
+    <li><b>Letzter vollständiger Lauf:</b> Logs von Spark und publish</li>
+    <li><b>Suche:</b> funktioniert weiter, während der neue Lauf läuft</li>
+  </ol>
+</section>
+
+<!-- 12 Kennzahlen -->
+<section class="slide" data-footer="MTG-Kartensuche · Ergebnisse">
+  <div class="kicker">Ergebnis</div>
+  <h2>Erster vollständiger Lauf am 12.11.2026</h2>
+  <div class="grid2">
+    <table>
+      <tr><th>Task</th><th class="r">Dauer</th><th>Ergebnis</th></tr>
+      <tr><td class="mono" style="font-size:18px">fetch_cards</td><td class="r">26 min</td><td>937 Seiten, 93.643 Karten</td></tr>
+      <tr><td class="mono" style="font-size:18px">raw_to_final</td><td class="r">13 s</td><td>0 verworfen, 0 Duplikate</td></tr>
+      <tr><td class="mono" style="font-size:18px">final_to_mongodb</td><td class="r">9 s</td><td>93.643 Dokumente</td></tr>
+      <tr><td class="mono" style="font-size:18px">publish</td><td class="r">1 s</td><td>veröffentlicht</td></tr>
+    </table>
+    <div class="box warm" style="align-self:start">
+      <div class="stat"><div class="value" style="color:var(--warm)">über 98 %</div><div class="label">der Laufzeit entfallen auf den API-Abruf</div></div>
+      <p class="small" style="margin-top:18px">Etwa 1,7 s je Seite inklusive Pause. Die Verarbeitung mit Spark ist kein Engpass.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 13 Fazit -->
+<section class="slide" data-footer="MTG-Kartensuche · Fazit und Ausblick">
+  <div class="kicker">Fazit</div>
+  <h2>Was das Projekt zeigt und was als Nächstes käme</h2>
+  <div class="grid2">
+    <div>
+      <h3>Erreicht</h3>
+      <ul class="bullets small">
+        <li>Vollautomatischer, täglicher ETL-Lauf</li>
+        <li>Raw-Layer als originalgetreue Kopie, Neuverarbeitung ohne API</li>
+        <li>Suche bleibt bei Fehlern auf dem letzten guten Stand</li>
+        <li>Ein Befehl startet alles: <code>make up</code></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Ausblick</h3>
+      <ul class="bullets small">
+        <li>Spark auf einem eigenen Cluster statt lokal</li>
+        <li>Volltextsuche (z.&nbsp;B. Atlas Search) bei viel mehr Daten</li>
+        <li>Benachrichtigung, wenn ein Lauf fehlschlägt</li>
+        <li>Weitere Sprachen und Preise aus anderen Quellen</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 14 Fragen -->
+<section class="slide title-slide" data-footer="MTG-Kartensuche">
+  <div class="mana-strip" aria-hidden="true">
+    <span style="background:var(--mana-w)"></span><span style="background:var(--mana-u)"></span><span style="background:var(--mana-b)"></span><span style="background:var(--mana-r)"></span><span style="background:var(--mana-g)"></span>
+  </div>
+  <h1>Fragen?</h1>
+  <p class="sub">Code und Doku: github.com/Matti2603/Big-Data</p>
+</section>
+
+</div>
+<div id="hint">← → oder Leertaste blättern · F Vollbild</div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var stage = document.getElementById('stage');
+  var current = 0;
+
+  slides.forEach(function (s, i) {
+    var n = document.createElement('div');
+    n.className = 'num';
+    n.textContent = (i + 1) + ' / ' + slides.length;
+    s.appendChild(n);
+  });
+
+  function fit() {
+    var scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    stage.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+  }
+
+  function show(i) {
+    current = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === current); });
+    if (location.hash !== '#' + (current + 1)) history.replaceState(null, '', '#' + (current + 1));
+  }
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter') { show(current + 1); e.preventDefault(); }
+    else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace') { show(current - 1); e.preventDefault(); }
+    else if (k === 'Home') show(0);
+    else if (k === 'End') show(slides.length - 1);
+    else if (k === 'f' || k === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    show(current + (e.clientX > window.innerWidth / 2 ? 1 : -1));
+  });
+
+  window.addEventListener('resize', fit);
+  window.addEventListener('hashchange', function () {
+    var n = parseInt(location.hash.slice(1), 10);
+    if (n) show(n - 1);
+  });
+
+  fit();
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  setTimeout(function () { document.getElementById('hint').style.opacity = 0; }, 4000);
+})();
+</script>
+</body>
+</html>

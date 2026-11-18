@@ -145,6 +145,31 @@
     .slide { position: relative; display: flex !important; width: 1280px; height: 720px; page-break-after: always; break-after: page; }
     #hint { display: none; }
   }
+
+  /* Screenshots */
+  .shot {
+    display: block; width: 100%; border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(28, 34, 43, .10); background: #fff;
+    object-fit: cover; object-position: top left;
+  }
+  .caption { font-size: 16px; color: var(--muted); margin-top: 8px; }
+
+  /* Eine Karte auf dem Weg */
+  .journey { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: stretch; }
+  .journey .step { display: flex; flex-direction: column; }
+  .journey .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .journey .head b { font-size: 20px; }
+  .journey .head span { font-size: 15px; color: var(--muted); }
+  .journey pre {
+    flex: 1; font-family: var(--mono); font-size: 15px; line-height: 1.55;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 12px; white-space: pre-wrap; word-break: break-word; color: var(--ink);
+  }
+  .journey .step:nth-child(2) pre, .journey .step:nth-child(3) pre { background: var(--accent-soft); border-color: #c4d4ee; }
+  .journey .step:nth-child(4) pre { background: #e5f1e8; border-color: #bcdcc5; }
+  .journey mark { background: #fbe3a8; color: inherit; border-radius: 3px; padding: 0 2px; }
+  .journey .what { font-size: 17px; line-height: 1.4; margin-top: 10px; color: var(--ink); min-height: 66px; }
+  .note { font-size: 19px; color: var(--muted); margin-top: 18px; }
 </style>
 </head>
 <body>
@@ -161,44 +186,45 @@
   <p class="meta">Matti Frey <span>· Big Data · November 2026</span></p>
 </section>
 
+
 <!-- 2 Aufgabe -->
 <section class="slide" data-footer="MTG-Kartensuche · Aufgabe und Ergebnis">
   <div class="kicker">Aufgabe</div>
   <h2>Alle Magic-Karten laden und durchsuchbar machen</h2>
   <div class="grid4" style="margin-bottom:40px">
-    <div class="box stat"><div class="value">93.643</div><div class="label">Karten (Druckversionen)</div></div>
-    <div class="box stat"><div class="value">937</div><div class="label">API-Seiten je Lauf</div></div>
-    <div class="box stat"><div class="value">6</div><div class="label">Tasks in einem Airflow-DAG</div></div>
-    <div class="box stat"><div class="value">03:00</div><div class="label">täglicher Lauf (UTC)</div></div>
+    <div class="box stat"><div class="value">93.643</div><div class="label">Karten</div></div>
+    <div class="box stat"><div class="value">4 min</div><div class="label">für einen kompletten Lauf</div></div>
+    <div class="box stat"><div class="value">6</div><div class="label">Schritte, gesteuert von Airflow</div></div>
+    <div class="box stat"><div class="value">4 Uhr</div><div class="label">läuft jede Nacht von selbst</div></div>
   </div>
   <ul class="bullets">
-    <li>Quelle: <code>api.magicthegathering.io</code>, ETL vollständig automatisiert mit Airflow</li>
-    <li>Big-Data-Strecke: HDFS (Raw + Final), PySpark, MongoDB als Endnutzer-Datenbank</li>
-    <li>Suche nach Name, Kartentext und Künstler, auf Englisch und Deutsch</li>
+    <li>Quelle: die öffentliche API <code>api.magicthegathering.io</code></li>
+    <li>Verarbeitung mit Big-Data-Werkzeugen: HDFS, PySpark, MongoDB</li>
+    <li>Ergebnis: eine Webseite, die Karten nach Name, Text oder Künstler findet</li>
   </ul>
 </section>
 
 <!-- 3 Datenquelle -->
 <section class="slide" data-footer="MTG-Kartensuche · Datenquelle">
   <div class="kicker">Datenquelle</div>
-  <h2>Die API liefert Karten seitenweise</h2>
+  <h2>Die API liefert die Karten in Seiten zu je 100</h2>
   <div class="grid2">
     <div>
       <div class="box" style="margin-bottom:24px">
         <p class="mono" style="font-size:20px">GET /v1/cards?page=N&amp;pageSize=100</p>
       </div>
       <table>
-        <tr><th>Header</th><th>Nutzen</th></tr>
-        <tr><td><code>Total-Count</code></td><td>93.643 Karten</td></tr>
-        <tr><td><code>Link: rel="last"</code></td><td>letzte Seite: 937</td></tr>
-        <tr><td><code>Ratelimit-*</code></td><td>1.000 Anfragen, Rest</td></tr>
+        <tr><th>Die API sagt mit</th><th>Wert</th></tr>
+        <tr><td>wie viele Karten es gibt</td><td>93.643</td></tr>
+        <tr><td>welche Seite die letzte ist</td><td>937</td></tr>
+        <tr><td>wie viele Anfragen erlaubt sind</td><td>1.000</td></tr>
       </table>
     </div>
     <div>
       <ul class="bullets">
-        <li>Eine Karte = eine <b>Druckversion</b>: gleiche Karte in mehreren Editionen, je eigene <code>id</code></li>
-        <li>Übersetzungen im Feld <code>foreignNames</code>, daraus wird Deutsch übernommen</li>
-        <li>Rohdaten pro Lauf: 366 MB JSON</li>
+        <li>Eine Karte gibt es oft in mehreren Editionen. Jede <b>Druckversion</b> ist ein eigener Eintrag mit eigener ID.</li>
+        <li>Übersetzungen stehen mit drin, ich übernehme Deutsch.</li>
+        <li>Ein kompletter Abruf: 366 MB JSON.</li>
       </ul>
     </div>
   </div>
@@ -264,10 +290,59 @@
   </svg>
 </section>
 
-<!-- 5 DAG -->
+<!-- 5 Eine Karte auf dem Weg -->
+<section class="slide" data-footer="MTG-Kartensuche · Beispiel Manta Riders">
+  <div class="kicker">Beispiel aus der Aufgabe</div>
+  <h2>Eine Karte auf dem Weg: „Manta Riders“</h2>
+  <div class="journey">
+    <div class="step">
+      <div class="head"><b>1 · Raw</b><span>HDFS, JSON</span></div>
+<pre>"name": "Manta Riders",
+"multiverseid": <mark>"4711"</mark>,
+"imageUrl": <mark>"http</mark>://gatherer…",
+"foreignNames": [ …
+  { "language": "German",
+    "name": <mark>"Rochenreiter"</mark> }
+… ]</pre>
+      <p class="what">So wie es von der API kommt, unverändert.</p>
+    </div>
+    <div class="step">
+      <div class="head"><b>2 · Final</b><span>HDFS, Parquet</span></div>
+<pre>name:         Manta Riders
+multiverseid: <mark>4711</mark>
+image_url:    <mark>https</mark>://gatherer…
+name_de:      <mark>Rochenreiter</mark>
+set_code:     TMP</pre>
+      <p class="what">Bereinigt: Zahl statt Text, sichere Bild-Adresse, Deutsch als eigene Spalte.</p>
+    </div>
+    <div class="step">
+      <div class="head"><b>3 · Datenbank</b><span>MongoDB</span></div>
+<pre>name:        Manta Riders
+name_de:     Rochenreiter
+color_names: [<mark>"Blau"</mark>]
+versions:    <mark>2</mark>
+search.name:
+  <mark>"manta riders |
+   rochenreiter"</mark></pre>
+      <p class="what">Angereichert: Suchfeld in Kleinbuchstaben, Farbe auf Deutsch, Anzahl Druckversionen.</p>
+    </div>
+    <div class="step">
+      <div class="head"><b>4 · Suche</b><span>Webseite</span></div>
+<pre>Eingabe:  "manta"
+     oder "Rochenreiter"
+
+Treffer:  Manta Riders
+          Rochenreiter
+          ID 4711</pre>
+      <p class="what">Gefunden, egal ob englisch oder deutsch, groß oder klein.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 DAG -->
 <section class="slide" data-footer="MTG-Kartensuche · Airflow-DAG">
   <div class="kicker">Orchestrierung</div>
-  <h2>Der DAG <code style="font-size:.85em">mtg_cards</code>: sechs Tasks in einer Kette</h2>
+  <h2>Airflow führt sechs Schritte nacheinander aus</h2>
   <div class="chain">
     <div class="t"><b>create_hdfs_dirs</b><small>Ordner anlegen</small></div><div class="arr">→</div>
     <div class="t"><b>fetch_cards</b><small>API → Raw</small></div><div class="arr">→</div>
@@ -277,166 +352,153 @@
     <div class="t"><b>cleanup_raw</b><small>alte Rohdaten</small></div>
   </div>
   <div class="grid3">
-    <div class="box"><h3>Zeitplan</h3><p class="small">Täglich 03:00 UTC, kein Catchup, höchstens ein Lauf gleichzeitig</p></div>
-    <div class="box"><h3>Wiederholungen</h3><p class="small">Standard 2 Versuche, <code>fetch_cards</code> 6 Versuche im Abstand von 10 min</p></div>
-    <div class="box"><h3>Testlauf</h3><p class="small">Parameter <code>max_pages</code>: z.&nbsp;B. 5 Seiten = 500 Karten statt aller 937</p></div>
+    <div class="box"><h3>Automatisch</h3><p class="small">Jede Nacht um 4 Uhr (03:00 UTC), nie zwei Läufe gleichzeitig</p></div>
+    <div class="box"><h3>Fehlertolerant</h3><p class="small">Schlägt ein Schritt fehl, versucht Airflow ihn erneut</p></div>
+    <div class="box"><h3>Testbar</h3><p class="small">Testlauf mit nur 5 Seiten über den Parameter <code>max_pages</code></p></div>
   </div>
 </section>
 
-<!-- 6 fetch_cards -->
-<section class="slide" data-footer="MTG-Kartensuche · Task fetch_cards">
-  <div class="kicker">Task 2 · fetch_cards</div>
-  <h2>Rohdaten unverändert sichern, schnell und robust</h2>
-  <div class="grid2">
+<!-- 7 fetch_cards -->
+<section class="slide" data-footer="MTG-Kartensuche · Schritt fetch_cards">
+  <div class="kicker">Schritt 2 · fetch_cards</div>
+  <h2>Alle Seiten laden und unverändert speichern</h2>
+  <div class="grid2" style="grid-template-columns: 5fr 6fr">
     <ul class="bullets small">
-      <li><b>6 Seiten parallel</b>: 937 Seiten in unter 4 Minuten</li>
-      <li>Jede Seite als eigene Datei: <code>raw/&lt;Datum&gt;/cards_page_0001.json</code></li>
-      <li>Vor dem Speichern prüfen: gültiges JSON mit Liste <code>cards</code></li>
-      <li>Atomar schreiben: erst <code>_tmp</code>, dann umbenennen</li>
-      <li><code>_manifest.json</code>: Zeitpunkt, Anzahl laut API, Seiten</li>
+      <li><b>6 Seiten gleichzeitig:</b> alle 937 Seiten in unter 4 Minuten</li>
+      <li>Jede Seite als eigene Datei, genau wie von der API</li>
+      <li>API überlastet? Kurz warten und neu versuchen, bis zu 8-mal</li>
+      <li>Abgebrochen? Der nächste Versuch macht bei der fehlenden Seite weiter</li>
     </ul>
-    <table>
-      <tr><th>Situation</th><th>Verhalten</th></tr>
-      <tr><td>HTTP 429, 5xx, Netzfehler</td><td>bis 8 Versuche, Pause wächst bis 5 min, <code>Retry-After</code></td></tr>
-      <tr><td>anderer Fehler (404)</td><td>sofort abbrechen</td></tr>
-      <tr><td>Task bricht ab</td><td>Airflow-Retry macht bei der fehlenden Seite weiter</td></tr>
-      <tr><td>nach jeder Seite</td><td>0,5 s Pause je Thread, API schonen</td></tr>
-    </table>
+    <div>
+      <img class="shot" src="bilder/hdfs.jpg" alt="HDFS-Ordner mit den Rohdaten-Dateien cards_page_0001.json und folgenden" style="height:auto">
+      <p class="caption">HDFS: eine Datei pro API-Seite, dazu ein Manifest</p>
+    </div>
   </div>
 </section>
 
-<!-- 7 raw_to_final -->
-<section class="slide" data-footer="MTG-Kartensuche · Task raw_to_final">
-  <div class="kicker">Task 3 · raw_to_final · PySpark</div>
+<!-- 8 raw_to_final -->
+<section class="slide" data-footer="MTG-Kartensuche · Schritt raw_to_final">
+  <div class="kicker">Schritt 3 · raw_to_final · PySpark</div>
   <h2>Aus 937 Seiten wird eine saubere Tabelle</h2>
   <div class="grid2">
-    <div>
-      <ul class="bullets small">
-        <li>Festes Schema beim Lesen, dann <code>explode</code>: eine Zeile je Karte</li>
-        <li>Ohne <code>id</code> oder <code>name</code> verwerfen, Duplikate nach <code>id</code> entfernen</li>
-        <li>Texte trimmen, leere Werte → NULL, <code>multiverseid</code> → Zahl</li>
-        <li>Bild-URLs auf <code>https</code>, Edition in Großbuchstaben</li>
-        <li>Deutsche Übersetzung als eigene Spalten (<code>name_de</code>, <code>text_de</code> …)</li>
-        <li>Spalten und Typen genau wie in <code>ddl/final_cards.sql</code></li>
-      </ul>
-    </div>
-    <div class="box blue" style="align-self:start">
+    <ul class="bullets small">
+      <li>Eine Zeile pro Karte</li>
+      <li>Unbrauchbares raus: Einträge ohne ID oder Name, doppelte Einträge</li>
+      <li>Einheitlich: Zahlen als Zahl, leere Felder leer, Bilder per https</li>
+      <li>Deutsche Übersetzung in eigene Spalten</li>
+      <li>Spalten und Typen festgelegt in <code>ddl/final_cards.sql</code></li>
+    </ul>
+    <div class="box blue">
       <h3>Raw → Final</h3>
-      <p class="small muted" style="margin-bottom:14px">Größe beim ersten vollständigen Lauf</p>
-      <p class="small" style="margin-bottom:6px">JSON, 937 Dateien: <b>366 MB</b></p>
+      <p class="small" style="margin:12px 0 6px">JSON, 937 Dateien: <b>366 MB</b></p>
       <div class="bar warm" style="width:100%"></div>
       <p class="small" style="margin:18px 0 6px">Parquet, 4 Dateien: <b>23 MB</b></p>
       <div class="bar" style="width:6.3%"></div>
-      <p class="small" style="margin-top:18px">Spaltenorientiert und komprimiert: rund <b>16× kleiner</b></p>
+      <p class="small" style="margin-top:18px">Parquet speichert spaltenweise und komprimiert: rund <b>16× kleiner</b></p>
     </div>
   </div>
 </section>
 
-<!-- 8 final_to_mongodb + publish -->
-<section class="slide" data-footer="MTG-Kartensuche · Tasks final_to_mongodb und publish">
-  <div class="kicker">Tasks 4 und 5</div>
+<!-- 9 final_to_mongodb + publish -->
+<section class="slide" data-footer="MTG-Kartensuche · Schritte final_to_mongodb und publish">
+  <div class="kicker">Schritte 4 und 5</div>
   <h2>Für die Suche aufbereiten und sicher veröffentlichen</h2>
   <div class="grid2">
     <div class="box">
       <h3>final_to_mongodb <span class="pill">PySpark</span></h3>
       <ul class="bullets small">
-        <li>Suchfelder normalisiert: klein, ohne Akzente, ß → ss</li>
-        <li><code>versions</code>: Druckversionen je Name (Window-Funktion)</li>
-        <li>Farben auf Deutsch, Manakosten als Liste</li>
-        <li>Lädt in <code>cards_staging</code> mit Validator aus der DDL</li>
-        <li>Prüfung: Dokumente = Zeilen im Final-Layer</li>
+        <li>Suchfelder ohne Groß-/Kleinschreibung und Akzente: „weiss“ findet „Weiß“</li>
+        <li>Zählt, wie viele Druckversionen es von jeder Karte gibt</li>
+        <li>Lädt alles zuerst in eine Zwischenablage: <code>cards_staging</code></li>
       </ul>
     </div>
     <div class="box">
       <h3>publish</h3>
       <ul class="bullets small">
-        <li>Staging darf nicht leer sein</li>
-        <li>Vollständiger Lauf: höchstens 10 % weniger Karten als vorher</li>
-        <li>Indizes anlegen, dann <code>renameCollection</code> in einem Schritt</li>
-        <li>Die Suche sieht nie einen halb geladenen Stand</li>
-        <li>Datenstand in <code>meta</code>, angezeigt im Frontend</li>
+        <li>Prüft: nicht leer und nicht mehr als 10 % weniger Karten als vorher</li>
+        <li>Tauscht dann <code>cards_staging</code> gegen <code>cards</code>, in einem Schritt</li>
+        <li><b>Die Suche zeigt nie halbe Daten</b>, auch wenn ein Lauf abbricht</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- 9 Datenmodell -->
+<!-- 10 Datenmodell -->
 <section class="slide" data-footer="MTG-Kartensuche · Datenmodell">
   <div class="kicker">Datenmodell</div>
   <h2>Drei Schichten, eine DDL-Datei je Tabelle</h2>
-  <table style="margin-bottom:30px">
+  <table style="margin-bottom:26px">
     <tr><th>Schicht</th><th>Ort</th><th>Format</th><th>Inhalt</th></tr>
-    <tr><td><b>Raw</b></td><td class="mono" style="font-size:17px">/user/hadoop/mtg/raw/&lt;Datum&gt;/</td><td>JSON</td><td>Originalantwort der API, 3 Tage aufbewahrt</td></tr>
-    <tr><td><b>Final</b></td><td class="mono" style="font-size:17px">/user/hadoop/mtg/final/cards/</td><td>Parquet</td><td>bereinigt, 30 Spalten, eine Zeile je Druckversion</td></tr>
-    <tr><td><b>Endnutzer</b></td><td class="mono" style="font-size:17px">MongoDB mtg.cards</td><td>BSON</td><td>Final-Daten plus Suchfelder</td></tr>
+    <tr><td><b>Raw</b></td><td class="mono" style="font-size:17px">/user/hadoop/mtg/raw/&lt;Datum&gt;/</td><td>JSON</td><td>Original der API, 3 Tage aufbewahrt</td></tr>
+    <tr><td><b>Final</b></td><td class="mono" style="font-size:17px">/user/hadoop/mtg/final/cards/</td><td>Parquet</td><td>bereinigt, eine Zeile je Druckversion</td></tr>
+    <tr><td><b>Endnutzer</b></td><td class="mono" style="font-size:17px">MongoDB mtg.cards</td><td>Dokumente</td><td>Final-Daten plus Suchfelder</td></tr>
   </table>
-  <div class="grid3">
-    <div class="box"><p class="mono" style="font-size:19px;font-weight:600">ddl/final_cards.sql</p><p class="small muted">Spark SQL, wird von beiden Spark-Jobs registriert</p></div>
-    <div class="box"><p class="mono" style="font-size:19px;font-weight:600">ddl/cards.json</p><p class="small muted">JSON-Schema-Validator und Indizes für MongoDB</p></div>
-    <div class="box"><p class="mono" style="font-size:19px;font-weight:600">ddl/meta.json</p><p class="small muted">Datenstand je veröffentlichter Collection</p></div>
+  <div class="grid3" style="margin-bottom:22px">
+    <div class="box" style="padding:18px 22px"><p class="mono" style="font-size:18px;font-weight:600">ddl/final_cards.sql</p><p class="small muted">Tabelle im Final-Layer</p></div>
+    <div class="box" style="padding:18px 22px"><p class="mono" style="font-size:18px;font-weight:600">ddl/cards.json</p><p class="small muted">Karten in MongoDB</p></div>
+    <div class="box" style="padding:18px 22px"><p class="mono" style="font-size:18px;font-weight:600">ddl/meta.json</p><p class="small muted">Datenstand für die Webseite</p></div>
   </div>
+  <p class="small"><b>Warum MongoDB?</b> Eine Karte hat Listen (Farben, Typen) und viele optionale Felder. Als Dokument passt sie ohne Zusatztabellen.</p>
 </section>
 
-<!-- 10 Web -->
+<!-- 11 Web -->
 <section class="slide" data-footer="MTG-Kartensuche · Webanwendung">
   <div class="kicker">Frontend</div>
-  <h2>Suche für Endnutzer</h2>
-  <div class="grid2">
+  <h2>Die Suche für Endnutzer</h2>
+  <div class="grid2" style="grid-template-columns: 7fr 4fr">
     <div>
-      <h3>Funktionen</h3>
-      <ul class="bullets small">
-        <li>Suche in Name, Kartentext, Künstler oder allem</li>
-        <li>Teilstring, ohne Groß-/Kleinschreibung und Akzente: „weiss“ findet „Weiß“</li>
-        <li>Englisch und Deutsch: „Manta“ findet „Wolkenmanta“</li>
-        <li>„Jede Karte nur einmal“: Druckversionen per <code>$group</code> zusammenfassen</li>
-        <li>Detailseite mit Bildern und allen Druckversionen</li>
-      </ul>
+      <img class="shot" src="bilder/suche.jpg" alt="Suchergebnis für Manta mit Cloud Manta (Wolkenmanta) und Manta Riders" style="height:420px">
+      <p class="caption">Suche nach „Manta“, wie im Beispiel der Aufgabenstellung</p>
     </div>
-    <div>
-      <h3>Sicherheit</h3>
-      <ul class="bullets small">
-        <li>Eigener MongoDB-Benutzer nur mit Leserechten</li>
-        <li>Suchbegriff wird maskiert, höchstens 100 Zeichen</li>
-        <li>Ausgaben escaped, Content Security Policy</li>
-        <li>Alle Ports nur auf <code>127.0.0.1</code></li>
-        <li>Passwörter zufällig erzeugt, nicht im Repo</li>
-      </ul>
-    </div>
+    <ul class="bullets small">
+      <li>Suche in Name, Kartentext oder Künstler</li>
+      <li>Englisch und Deutsch: „Manta“ findet „Wolkenmanta“</li>
+      <li>Groß-/Kleinschreibung und Akzente egal</li>
+      <li>Auf Wunsch jede Karte nur einmal</li>
+      <li>Die Webseite darf die Datenbank nur lesen</li>
+    </ul>
   </div>
 </section>
 
-<!-- 11 Demo -->
+<!-- 12 Demo -->
 <section class="slide" data-footer="MTG-Kartensuche · Live-Demo">
   <div class="kicker">Live-Demo</div>
   <h2>Der Lauf vom Anfang ist fertig</h2>
-  <ol class="steps">
-    <li><b>Airflow:</b> alle sechs Tasks grün, Dauer und Logs mit den Zählungen</li>
-    <li><b>HDFS:</b> 937 Rohdaten-Seiten in <code>raw/&lt;Datum&gt;</code>, Parquet in <code>final/cards</code></li>
-    <li><b>Suche:</b> „Manta“ findet „Manta Riders“ und „Wolkenmanta“</li>
-    <li><b>Detailseite:</b> Bild, deutscher Text, andere Druckversionen</li>
-  </ol>
-</section>
-
-<!-- 12 Kennzahlen -->
-<section class="slide" data-footer="MTG-Kartensuche · Ergebnisse">
-  <div class="kicker">Ergebnis</div>
-  <h2>Vollständiger Lauf am 16.11.2026</h2>
-  <div class="grid2">
-    <table>
-      <tr><th>Task</th><th class="r">Dauer</th><th>Ergebnis</th></tr>
-      <tr><td class="mono" style="font-size:18px">fetch_cards</td><td class="r">3:44 min</td><td>937 Seiten, 93.643 Karten</td></tr>
-      <tr><td class="mono" style="font-size:18px">raw_to_final</td><td class="r">11 s</td><td>0 verworfen, 0 Duplikate</td></tr>
-      <tr><td class="mono" style="font-size:18px">final_to_mongodb</td><td class="r">8 s</td><td>93.643 Dokumente</td></tr>
-      <tr><td class="mono" style="font-size:18px">publish</td><td class="r">1 s</td><td>veröffentlicht</td></tr>
-    </table>
-    <div class="box warm" style="align-self:start">
-      <div class="stat"><div class="value" style="color:var(--warm)">4:10 min</div><div class="label">für den ganzen Lauf, von der API bis zur Suche</div></div>
-      <p class="small" style="margin-top:18px">Erste Version mit Abruf Seite für Seite: <b>26 min</b>. Mit 6 parallelen Abrufen: <b>3:44 min</b>. Spark und MongoDB brauchen zusammen unter 25 s.</p>
+  <img class="shot" src="bilder/airflow.jpg" alt="Airflow-Graph: alle sechs Tasks im Zustand success" style="height:auto;margin-bottom:26px">
+  <div class="grid2" style="grid-template-columns: 7fr 4fr">
+    <ol class="steps small">
+      <li><b>Airflow:</b> alle sechs Schritte grün</li>
+      <li><b>HDFS:</b> die neuen Rohdaten von heute</li>
+      <li><b>Suche:</b> „Manta“ findet „Manta Riders“ und „Wolkenmanta“</li>
+      <li><b>Detailseite:</b> Bild, deutscher Text, andere Druckversionen</li>
+    </ol>
+    <div>
+      <img class="shot" src="bilder/airflow_laeufe.jpg" alt="Dauer der Läufe in Airflow: erster Lauf 27 Minuten, danach rund 4 Minuten, alle grün" style="height:250px;width:250px">
+      <p class="caption">Erster Lauf 27 min, danach rund 4 min</p>
     </div>
   </div>
 </section>
 
-<!-- 13 Fazit -->
+<!-- 13 Kennzahlen -->
+<section class="slide" data-footer="MTG-Kartensuche · Ergebnisse">
+  <div class="kicker">Ergebnis</div>
+  <h2>Ein kompletter Lauf in gut 4 Minuten</h2>
+  <div class="grid2">
+    <table>
+      <tr><th>Schritt</th><th class="r">Dauer</th><th>Ergebnis</th></tr>
+      <tr><td class="mono" style="font-size:18px">fetch_cards</td><td class="r">3:44 min</td><td>937 Seiten, 93.643 Karten</td></tr>
+      <tr><td class="mono" style="font-size:18px">raw_to_final</td><td class="r">11 s</td><td>nichts verworfen, keine Duplikate</td></tr>
+      <tr><td class="mono" style="font-size:18px">final_to_mongodb</td><td class="r">8 s</td><td>93.643 Dokumente</td></tr>
+      <tr><td class="mono" style="font-size:18px">publish</td><td class="r">1 s</td><td>veröffentlicht</td></tr>
+    </table>
+    <div class="box warm">
+      <div class="stat"><div class="value" style="color:var(--warm)">26 → 4 min</div><div class="label">durch parallelen Abruf</div></div>
+      <p class="small" style="margin-top:18px">Die meiste Zeit wartet der Lauf auf die API. Spark und MongoDB brauchen zusammen unter 25 Sekunden.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 14 Fazit -->
 <section class="slide" data-footer="MTG-Kartensuche · Fazit und Ausblick">
   <div class="kicker">Fazit</div>
   <h2>Was das Projekt zeigt und was als Nächstes käme</h2>
@@ -444,31 +506,38 @@
     <div>
       <h3>Erreicht</h3>
       <ul class="bullets small">
-        <li>Vollautomatischer, täglicher ETL-Lauf</li>
-        <li>Raw-Layer als originalgetreue Kopie, Neuverarbeitung ohne API</li>
-        <li>Suche bleibt bei Fehlern auf dem letzten guten Stand</li>
+        <li>Läuft jede Nacht vollautomatisch</li>
+        <li>Rohdaten bleiben erhalten: neu verarbeiten ohne neuen Abruf</li>
+        <li>Bei Fehlern bleibt die Suche auf dem letzten guten Stand</li>
         <li>Ein Befehl startet alles: <code>make up</code></li>
       </ul>
     </div>
     <div>
       <h3>Ausblick</h3>
       <ul class="bullets small">
-        <li>Spark auf einem eigenen Cluster statt lokal</li>
-        <li>Volltextsuche (z.&nbsp;B. Atlas Search) bei viel mehr Daten</li>
+        <li>Spark auf einem echten Cluster statt lokal</li>
+        <li>Volltextsuche für sehr viel mehr Daten</li>
         <li>Benachrichtigung, wenn ein Lauf fehlschlägt</li>
-        <li>Weitere Sprachen und Preise aus anderen Quellen</li>
+        <li>Weitere Sprachen und Kartenpreise</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- 14 Fragen -->
+<!-- 15 Fragen -->
 <section class="slide title-slide" data-footer="MTG-Kartensuche">
   <div class="mana-strip" aria-hidden="true">
     <span style="background:var(--mana-w)"></span><span style="background:var(--mana-u)"></span><span style="background:var(--mana-b)"></span><span style="background:var(--mana-r)"></span><span style="background:var(--mana-g)"></span>
   </div>
   <h1>Fragen?</h1>
   <p class="sub">Code und Doku: github.com/Matti2603/Big-Data</p>
+</section>
+
+<!-- 16 Reserve: Detailseite -->
+<section class="slide" data-footer="MTG-Kartensuche · Reserve">
+  <div class="kicker">Reserve</div>
+  <h2>Detailseite einer Karte</h2>
+  <img class="shot" src="bilder/detail.jpg" alt="Detailseite von Manta Riders mit Kartenbild, deutschem Namen Rochenreiter und allen Feldern" style="height:470px">
 </section>
 
 </div>
